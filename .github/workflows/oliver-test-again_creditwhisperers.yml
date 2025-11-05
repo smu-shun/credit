@@ -101,5 +101,6 @@ jobs:
         with:
           app-name: 'creditwhisperers'
           slot-name: 'Production'
-          package: './backend'
+          package: '.'
+
 
