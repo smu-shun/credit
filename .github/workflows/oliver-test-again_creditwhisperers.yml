@@ -58,7 +58,7 @@ jobs:
         run: |
           mkdir -p ./deploy-package
 
-          # Copy essential files and directories
+          # Copy essential files and directories (preserving all __init__.py files)
           cp -r ./backend/app ./deploy-package/
           cp -r ./backend/static ./deploy-package/ 2>/dev/null || echo "No static directory yet"
           cp ./backend/requirements.txt ./deploy-package/
@@ -85,10 +85,29 @@ jobs:
             echo "✗ app directory MISSING"
             exit 1
           fi
+
+          # CRITICAL: Verify __init__.py files exist (needed for Python packages)
+          if [ -f "./deploy-package/app/__init__.py" ]; then
+            echo "✓ app/__init__.py present (Python package)"
+          else
+            echo "✗ app/__init__.py MISSING - DEPLOYMENT WILL FAIL!"
+            exit 1
+          fi
+          if [ -f "./deploy-package/app/api/__init__.py" ]; then
+            echo "✓ app/api/__init__.py present"
+          fi
+          if [ -f "./deploy-package/app/config/__init__.py" ]; then
+            echo "✓ app/config/__init__.py present"
+          fi
+
           if [ -d "./deploy-package/static" ]; then
             echo "✓ static directory present (frontend)"
             ls ./deploy-package/static | head -10
           fi
+
+          echo ""
+          echo "=== Python package structure verification ==="
+          find ./deploy-package -name "__init__.py" | head -20
 
       # 8️⃣ Upload artifact for deployment
       - name: Upload artifact for deployment
