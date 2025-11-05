@@ -32,7 +32,9 @@ app.add_middleware(
         "http://localhost:3000",
         "ws://localhost:3000",
         "http://localhost:8000",
-        "ws://localhost:8000"
+        "ws://localhost:8000",
+        "https://creditwhisperers-bxcjfug7f6g5dxf6.japanwest-01.azurewebsites.net",
+        "wss://creditwhisperers-bxcjfug7f6g5dxf6.japanwest-01.azurewebsites.net"
     ],
     allow_credentials=True,
     allow_methods=["*"],
