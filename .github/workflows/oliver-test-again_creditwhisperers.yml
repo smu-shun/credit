@@ -1,12 +1,6 @@
 # =============================================
-# Deploy FULL STACK (React + Python FastAPI)
-# to Azure Web App: creditwhisperers
-# =============================================
-# This workflow:
-# 1️⃣ Builds the React frontend
-# 2️⃣ Copies the build into backend/static
-# 3️⃣ Installs Python dependencies
-# 4️⃣ Deploys backend + frontend together to Azure
+# FULL STACK DEPLOYMENT (React + FastAPI)
+# Both frontend and backend in same repo
 # =============================================
 
 name: Build and deploy fullstack app (React + FastAPI) to Azure Web App - creditwhisperers
@@ -33,16 +27,16 @@ jobs:
         with:
           node-version: '20'
 
-      # Step 3️⃣ Install and build frontend
+      # Step 3️⃣ Build frontend
       - name: Build frontend
         working-directory: ./frontend
         env:
-          CI: false
+          CI: false  # Don’t treat lint warnings as build-breaking
         run: |
           npm install
           npm run build
 
-      # Step 4️⃣ Copy built frontend into backend/static
+      # Step 4️⃣ Copy frontend build into backend/static
       - name: Copy frontend build into backend static folder
         run: |
           mkdir -p ./backend/static
@@ -55,22 +49,22 @@ jobs:
           python-version: '3.12'
 
       # Step 6️⃣ Install backend dependencies
+      # Since your requirements.txt is in ROOT, not backend
       - name: Install backend dependencies
-        working-directory: ./backend
         run: |
           python -m venv antenv
           source antenv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 7️⃣ Upload build artifact for deploy step
+      # Step 7️⃣ Upload artifact for deployment
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: fullstack-app
           path: |
-            ./backend
-            !./backend/antenv/
+            .
+            !antenv/
 
   deploy:
     runs-on: ubuntu-latest
@@ -80,13 +74,16 @@ jobs:
       contents: read
 
     steps:
-      # Step 8️⃣ Download artifact from build job
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: fullstack-app
 
-      # Step 9️⃣ Login to Azure
+      - name: Show downloaded files
+        run: |
+          pwd
+          ls -R | head -n 100
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -94,7 +91,6 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_235C2FC19D404939BDC4EA69C46C3133 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B6E3707AC40E488CAE0F182286BB105B }}
 
-      # Step 🔟 Deploy to Azure Web App
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
@@ -102,5 +98,3 @@ jobs:
           app-name: 'creditwhisperers'
           slot-name: 'Production'
           package: '.'
-
-
