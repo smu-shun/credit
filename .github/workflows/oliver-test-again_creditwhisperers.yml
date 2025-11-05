@@ -1,9 +1,4 @@
-# =============================================
-# FULL STACK DEPLOYMENT (React + FastAPI)
-# Both frontend and backend in same repo
-# =============================================
-
-name: Build and deploy fullstack app (React + FastAPI) to Azure Web App - creditwhisperers
+name: Build and deploy fullstack app to Azure Web App – creditwhisperers
 
 on:
   push:
@@ -18,38 +13,36 @@ jobs:
       contents: read
 
     steps:
-      # Step 1️⃣ Checkout code
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Step 2️⃣ Setup Node.js for frontend build
+      # 2️⃣ Setup Node (for React build)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
-      # Step 3️⃣ Build frontend
-      - name: Build frontend
+      # 3️⃣ Build frontend
+      - name: Install and build frontend
         working-directory: ./frontend
-        env:
-          CI: false  # Don’t treat lint warnings as build-breaking
         run: |
-          npm install
+          npm ci
           npm run build
 
-      # Step 4️⃣ Copy frontend build into backend/static
-      - name: Copy frontend build into backend static folder
+      # 4️⃣ Copy frontend build into backend/static
+      - name: Copy React build to backend/static
         run: |
           mkdir -p ./backend/static
           cp -r ./frontend/build/* ./backend/static/
 
-      # Step 5️⃣ Setup Python for backend
+      # 5️⃣ Setup Python for backend
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      # Step 6️⃣ Install backend dependencies
-      # requirements.txt is now inside ./backend
+      # 6️⃣ Install backend dependencies
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
@@ -58,14 +51,14 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 7️⃣ Upload artifact for deployment
+      # 7️⃣ Upload artifact (flatten backend directory)
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: fullstack-app
           path: |
-            .
-            !antenv/
+            backend/**
+            !backend/antenv/
 
   deploy:
     runs-on: ubuntu-latest
@@ -75,16 +68,19 @@ jobs:
       contents: read
 
     steps:
-      - name: Download build artifact
+      # 8️⃣ Download artifact
+      - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: fullstack-app
 
-      - name: Show downloaded files
+      # 9️⃣ Debug: inspect structure (optional)
+      - name: Inspect deployment package
         run: |
-          pwd
+          echo "Verifying files before deployment..."
           ls -R | head -n 100
 
+      # 🔟 Login to Azure
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -92,11 +88,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_235C2FC19D404939BDC4EA69C46C3133 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B6E3707AC40E488CAE0F182286BB105B }}
 
-      - name: 'Deploy to Azure Web App'
+      # 1️⃣1️⃣ Deploy backend (Python)
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'creditwhisperers'
-          slot-name: 'Production'
-          package: '.'
-
+          app-name: "creditwhisperers"
+          slot-name: "Production"
+          package: "."
