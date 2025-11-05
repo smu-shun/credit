@@ -57,9 +57,38 @@ jobs:
       - name: Prepare deployment package
         run: |
           mkdir -p ./deploy-package
-          cp -r ./backend/* ./deploy-package/
-          rm -rf ./deploy-package/antenv
+
+          # Copy essential files and directories
+          cp -r ./backend/app ./deploy-package/
+          cp -r ./backend/static ./deploy-package/ 2>/dev/null || echo "No static directory yet"
+          cp ./backend/requirements.txt ./deploy-package/
+          cp ./backend/startup.txt ./deploy-package/
+          cp ./backend/runtime.txt ./deploy-package/
+          cp ./backend/__init__.py ./deploy-package/ 2>/dev/null || true
+
+          # Copy scripts directory if needed for production
+          cp -r ./backend/scripts ./deploy-package/ 2>/dev/null || true
+
+          echo "=== Deploy package contents ==="
           ls -la ./deploy-package
+          echo ""
+          echo "=== Verifying critical files ==="
+          if [ -f "./deploy-package/requirements.txt" ]; then
+            echo "✓ requirements.txt present"
+          else
+            echo "✗ requirements.txt MISSING"
+            exit 1
+          fi
+          if [ -d "./deploy-package/app" ]; then
+            echo "✓ app directory present"
+          else
+            echo "✗ app directory MISSING"
+            exit 1
+          fi
+          if [ -d "./deploy-package/static" ]; then
+            echo "✓ static directory present (frontend)"
+            ls ./deploy-package/static | head -10
+          fi
 
       # 8️⃣ Upload artifact for deployment
       - name: Upload artifact for deployment
@@ -81,13 +110,51 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: fullstack-app
-          path: .
+          path: ./downloaded
 
-      # 1️⃣1️⃣ Debug: inspect structure (optional)
-      - name: Inspect deployment package
+      # 🔟 Move files to root if needed
+      - name: Prepare files for deployment
         run: |
-          echo "Verifying files before deployment..."
-          ls -R | head -n 100
+          echo "=== Downloaded artifact structure ==="
+          ls -la ./downloaded
+          echo ""
+          # Move all files from downloaded to current directory
+          mv ./downloaded/* ./downloaded/.[!.]* . 2>/dev/null || mv ./downloaded/* . 2>/dev/null || true
+          rm -rf ./downloaded
+          echo "=== Root level after preparation ==="
+          ls -la
+
+      # 1️⃣1️⃣ Verify deployment structure
+      - name: Verify deployment structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo ""
+          echo "=== Checking for Python files at root ==="
+          if [ -f "requirements.txt" ]; then
+            echo "✓ requirements.txt found at root"
+            echo "First 5 lines of requirements.txt:"
+            head -5 requirements.txt
+          else
+            echo "✗ requirements.txt NOT found at root - DEPLOYMENT WILL FAIL"
+            exit 1
+          fi
+          if [ -f "startup.txt" ]; then
+            echo "✓ startup.txt found at root"
+          fi
+          if [ -d "app" ]; then
+            echo "✓ app directory found at root"
+            ls -la app/ | head -20
+          else
+            echo "✗ app directory NOT found at root - DEPLOYMENT WILL FAIL"
+            exit 1
+          fi
+          if [ -d "static" ]; then
+            echo "✓ static directory found (frontend build)"
+          fi
+          echo ""
+          echo "=== All files in deployment package ==="
+          find . -type f -name "*.py" -o -name "*.txt" -o -name "*.json" | head -50
 
       # 1️⃣2️⃣ Login to Azure
       - name: Login to Azure
