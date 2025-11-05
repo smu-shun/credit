@@ -49,8 +49,9 @@ jobs:
           python-version: '3.12'
 
       # Step 6️⃣ Install backend dependencies
-      # Since your requirements.txt is in ROOT, not backend
+      # requirements.txt is now inside ./backend
       - name: Install backend dependencies
+        working-directory: ./backend
         run: |
           python -m venv antenv
           source antenv/bin/activate
@@ -98,3 +99,4 @@ jobs:
           app-name: 'creditwhisperers'
           slot-name: 'Production'
           package: '.'
+
