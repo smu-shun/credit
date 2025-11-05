@@ -105,56 +105,61 @@ jobs:
       contents: read
 
     steps:
-      # 9️⃣ Download artifact
+      # 9️⃣ Download artifact directly to current directory
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: fullstack-app
-          path: ./downloaded
 
-      # 🔟 Move files to root if needed
-      - name: Prepare files for deployment
-        run: |
-          echo "=== Downloaded artifact structure ==="
-          ls -la ./downloaded
-          echo ""
-          # Move all files from downloaded to current directory
-          mv ./downloaded/* ./downloaded/.[!.]* . 2>/dev/null || mv ./downloaded/* . 2>/dev/null || true
-          rm -rf ./downloaded
-          echo "=== Root level after preparation ==="
-          ls -la
-
-      # 1️⃣1️⃣ Verify deployment structure
+      # 🔟 Verify deployment structure
       - name: Verify deployment structure
         run: |
           echo "=== Current directory ==="
           pwd
+          ls -la
           echo ""
           echo "=== Checking for Python files at root ==="
           if [ -f "requirements.txt" ]; then
             echo "✓ requirements.txt found at root"
-            echo "First 5 lines of requirements.txt:"
+            echo "First 5 lines:"
             head -5 requirements.txt
           else
-            echo "✗ requirements.txt NOT found at root - DEPLOYMENT WILL FAIL"
+            echo "✗ requirements.txt NOT found at root"
+            echo "Contents of current directory:"
+            find . -maxdepth 2 -type f
             exit 1
           fi
+
           if [ -f "startup.txt" ]; then
-            echo "✓ startup.txt found at root"
+            echo "✓ startup.txt found"
+            cat startup.txt
           fi
+
+          if [ -f "runtime.txt" ]; then
+            echo "✓ runtime.txt found"
+            cat runtime.txt
+          fi
+
           if [ -d "app" ]; then
             echo "✓ app directory found at root"
-            ls -la app/ | head -20
+            ls -la app/ | head -10
           else
-            echo "✗ app directory NOT found at root - DEPLOYMENT WILL FAIL"
+            echo "✗ app directory NOT found at root"
             exit 1
           fi
+
           if [ -d "static" ]; then
-            echo "✓ static directory found (frontend build)"
+            echo "✓ static directory found (frontend)"
+            du -sh static/
           fi
-          echo ""
-          echo "=== All files in deployment package ==="
-          find . -type f -name "*.py" -o -name "*.txt" -o -name "*.json" | head -50
+
+      # 1️⃣1️⃣ Create explicit ZIP for deployment
+      - name: Create deployment ZIP
+        run: |
+          echo "Creating deployment.zip with correct structure..."
+          zip -r deployment.zip . -x "*.git*" "deployment.zip"
+          echo "ZIP created. Testing contents..."
+          unzip -l deployment.zip | head -30
 
       # 1️⃣2️⃣ Login to Azure
       - name: Login to Azure
@@ -171,6 +176,6 @@ jobs:
         with:
           app-name: "creditwhisperers"
           slot-name: "Production"
-          package: "."
+          package: "deployment.zip"
           startup-command: "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
